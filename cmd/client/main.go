@@ -34,7 +34,7 @@ func main() {
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	state := gamelogic.NewGameState(username)
-
+	pubsub.SubscribeJSON(connection, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.QueueTypeTransient, handlerPause(state))
 	for {
 		input := gamelogic.GetInput()
 
@@ -46,14 +46,15 @@ func main() {
 		case input[0] == "spawn":
 			err := state.CommandSpawn(input)
 			if err != nil {
-				log.Fatalf("Failed to spawn: %v", err)
+				fmt.Println("Failed to spawn: %v", err)
 			}
 		case input[0] == "move":
 			move, err := state.CommandMove(input)
 			if err != nil {
-				log.Fatalf("Failed to move: %v", err)
+				fmt.Println("Failed to move: %v", err)
+			} else {
+				fmt.Println("Successfully moved. Status:", move)
 			}
-			fmt.Println("Successfully moved. Status:", move)
 		case input[0] == "status":
 			state.CommandStatus()
 		case input[0] == "help":
@@ -69,4 +70,11 @@ func main() {
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt)
 	<-exit
+}
+
+func handlerPause(game *gamelogic.GameState) func(routing.PlayingState) {
+	defer fmt.Print("> ")
+	return func(state routing.PlayingState) {
+		game.HandlePause(state)
+	}
 }
