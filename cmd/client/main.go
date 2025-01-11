@@ -26,7 +26,13 @@ func main() {
 		log.Fatalf("Failed to get the username: %v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.QueueTypeTransient)
+	_, queue, err := pubsub.DeclareAndBind(
+		connection,
+		routing.ExchangePerilDirect,
+		routing.PauseKey+"."+username,
+		routing.PauseKey,
+		pubsub.QueueTypeTransient,
+	)
 	if err != nil {
 		log.Fatalf("Failed to declare and bind the queue: %v", err)
 	}
@@ -34,23 +40,69 @@ func main() {
 
 	state := gamelogic.NewGameState(username)
 
-	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.QueueTypeTransient, handlerPause(state))
+	err = pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilDirect,
+		routing.PauseKey+"."+username,
+		routing.PauseKey,
+		pubsub.QueueTypeTransient,
+		handlerPause(state),
+	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to pause: %v", err)
 	}
 	fmt.Printf("Subscribed to pause for queue %v!\n", queue.Name)
 
-	channel, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, routing.ArmyMovesPrefix+".*", pubsub.QueueTypeTransient)
+	channel, queue, err := pubsub.DeclareAndBind(
+		connection,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+username,
+		routing.ArmyMovesPrefix+".*",
+		pubsub.QueueTypeTransient,
+	)
 	if err != nil {
 		log.Fatalf("Failed to declare and bind the queue: %v", err)
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, routing.ArmyMovesPrefix+".*", pubsub.QueueTypeTransient, handlerMove(state))
+	err = pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+username,
+		routing.ArmyMovesPrefix+".*",
+		pubsub.QueueTypeTransient,
+		handlerMove(state, channel),
+	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to moves: %v", err)
 	}
 	fmt.Printf("Subscribed to moves for queue %v!\n", queue.Name)
+
+	/*
+		_, _, err = pubsub.DeclareAndBind(
+			connection,
+			routing.ExchangePerilTopic,
+			"war",
+			routing.WarRecognitionsPrefix+".*",
+			pubsub.QueueTypeDurable,
+			false,
+		)
+		if err != nil {
+			log.Fatalf("Failed to declare and bind the war queue: %v", err)
+		}
+	*/
+
+	err = pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.QueueTypeDurable,
+		handleWar(state),
+	)
+	if err != nil {
+		log.Fatalf("Failed to subscribe to wars: %v", err)
+	}
 
 	for {
 		input := gamelogic.GetInput()
@@ -72,7 +124,12 @@ func main() {
 				fmt.Printf("Failed to move: %v\n", err)
 			} else {
 				fmt.Println("Successfully moved. Status:", move)
-				err = pubsub.PublishJSON(channel, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, move)
+				err = pubsub.PublishJSON(
+					channel,
+					routing.ExchangePerilTopic,
+					routing.ArmyMovesPrefix+"."+username,
+					move,
+				)
 				if err != nil {
 					fmt.Printf("Failed to publish the move. %v:\n", err)
 				}
@@ -92,24 +149,4 @@ func main() {
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt)
 	<-exit
-}
-
-func handlerPause(game *gamelogic.GameState) func(routing.PlayingState) pubsub.AckType {
-	return func(state routing.PlayingState) pubsub.AckType {
-		game.HandlePause(state)
-		fmt.Print("> ")
-		return pubsub.Ack
-	}
-}
-
-func handlerMove(game *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.AckType {
-	return func(move gamelogic.ArmyMove) pubsub.AckType {
-		outcome := game.HandleMove(move)
-		fmt.Print("> ")
-		if outcome == gamelogic.MoveOutComeSafe || outcome == gamelogic.MoveOutcomeMakeWar {
-			return pubsub.Ack
-		} else {
-			return pubsub.NackDiscard
-		}
-	}
 }

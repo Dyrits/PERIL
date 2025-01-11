@@ -32,16 +32,22 @@ func DeclareAndBind(
 		fmt.Println("Failed to open a channel. Error:", err)
 		return nil, amqp.Queue{}, err
 	}
-	queue, err := channel.QueueDeclare(queueName, queueType == QueueTypeDurable, queueType == QueueTypeTransient, queueType == QueueTypeTransient, false, nil)
+
+	args := amqp.Table{
+		"x-dead-letter-exchange": "peril_dlx",
+	}
+	queue, err := channel.QueueDeclare(queueName, queueType == QueueTypeDurable, queueType == QueueTypeTransient, queueType == QueueTypeTransient, false, args)
 	if err != nil {
 		fmt.Println("Failed to declare a queue. Error:", err)
 		return nil, amqp.Queue{}, err
 	}
+
 	err = channel.QueueBind(queue.Name, key, exchange, false, nil)
 	if err != nil {
 		fmt.Println("Failed to bind the queue. Error:", err)
 		return nil, amqp.Queue{}, err
 	}
+
 	return channel, queue, nil
 }
 

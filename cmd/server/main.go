@@ -26,7 +26,13 @@ func main() {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, "game_logs", "game_logs.*", pubsub.QueueTypeDurable)
+	_, queue, err := pubsub.DeclareAndBind(
+		connection,
+		routing.ExchangePerilTopic,
+		"game_logs",
+		"game_logs.*",
+		pubsub.QueueTypeDurable,
+	)
 	if err != nil {
 		log.Fatalf("Failed to declare and bind the queue: %v", err)
 	}
@@ -44,13 +50,23 @@ func main() {
 		switch {
 		case input[0] == "pause":
 			fmt.Println("Pausing the game.")
-			err := pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
+			err := pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{IsPaused: true},
+			)
 			if err != nil {
 				log.Fatalf("Failed to publish the message. Error:", err)
 			}
 		case input[0] == "resume":
 			fmt.Println("Resuming the game.")
-			err := pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: false})
+			err := pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{IsPaused: false},
+			)
 			if err != nil {
 				log.Fatalf("Failed to publish the message. Error:", err)
 			}
