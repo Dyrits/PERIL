@@ -94,16 +94,22 @@ func main() {
 	<-exit
 }
 
-func handlerPause(game *gamelogic.GameState) func(routing.PlayingState) {
-	defer fmt.Print("> ")
-	return func(state routing.PlayingState) {
+func handlerPause(game *gamelogic.GameState) func(routing.PlayingState) pubsub.AckType {
+	return func(state routing.PlayingState) pubsub.AckType {
 		game.HandlePause(state)
+		fmt.Print("> ")
+		return pubsub.Ack
 	}
 }
 
-func handlerMove(game *gamelogic.GameState) func(move gamelogic.ArmyMove) {
-	return func(move gamelogic.ArmyMove) {
-		game.HandleMove(move)
+func handlerMove(game *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.AckType {
+	return func(move gamelogic.ArmyMove) pubsub.AckType {
+		outcome := game.HandleMove(move)
 		fmt.Print("> ")
+		if outcome == gamelogic.MoveOutComeSafe || outcome == gamelogic.MoveOutcomeMakeWar {
+			return pubsub.Ack
+		} else {
+			return pubsub.NackDiscard
+		}
 	}
 }

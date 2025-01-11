@@ -51,7 +51,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType QueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	channel, queue, err := DeclareAndBind(connection, exchange, queueName, key, queueType)
 	if err != nil {
@@ -71,10 +71,24 @@ func SubscribeJSON[T any](
 				fmt.Println("Failed to unmarshal the message. Error:", err)
 				continue
 			}
-			handler(value)
-			err = message.Ack(false)
-			if err != nil {
-				return
+
+			ackType := handler(value)
+			switch ackType {
+			case Ack:
+				err = message.Ack(false)
+				if err == nil {
+					fmt.Println("Message aknowledged (Ack)")
+				}
+			case NackRequeue:
+				err = message.Nack(false, true)
+				if err == nil {
+					fmt.Println("Message requeued (NackRequeue)")
+				}
+			case NackDiscard:
+				err = message.Nack(false, false)
+				if err == nil {
+					fmt.Println("Message discarded (NackDiscard)")
+				}
 			}
 		}
 	}()
@@ -86,4 +100,12 @@ type QueueType int
 const (
 	QueueTypeDurable QueueType = iota
 	QueueTypeTransient
+)
+
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
 )
