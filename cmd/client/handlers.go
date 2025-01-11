@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	pubsub "github.com/bootdotdev/learn-pub-sub-starter/internal"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -18,6 +18,7 @@ func handlerMove(state *gamelogic.GameState, channel *amqp.Channel) func(gamelog
 		case gamelogic.MoveOutComeSafe:
 			return pubsub.Ack
 		case gamelogic.MoveOutcomeMakeWar:
+			// The war queue must have been declared through RabbitMQ Management UI before.
 			err := pubsub.PublishJSON(channel, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix+"."+state.GetUsername(), gamelogic.RecognitionOfWar{
 				Attacker: move.Player,
 				Defender: state.GetPlayerSnap(),
@@ -26,10 +27,10 @@ func handlerMove(state *gamelogic.GameState, channel *amqp.Channel) func(gamelog
 				fmt.Println("Failed to publish the message. Error:", err)
 				return pubsub.NackRequeue
 			}
-			return pubsub.NackRequeue
+			return pubsub.Ack
 		default:
 			fmt.Println("Unexpected outcome:", outcome)
-			return pubsub.NackDiscard
+			return pubsub2.NackDiscard
 		}
 
 	}
@@ -51,12 +52,12 @@ func handleWar(state *gamelogic.GameState) func(war gamelogic.RecognitionOfWar) 
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
-			return pubsub.NackDiscard
+			return pubsub2.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeYouWon, gamelogic.WarOutcomeDraw:
 			return pubsub.Ack
 		default:
 			fmt.Println("Unexpected outcome:", outcome)
-			return pubsub.NackDiscard
+			return pubsub2.NackDiscard
 		}
 	}
 }

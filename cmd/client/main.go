@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	pubsub "github.com/bootdotdev/learn-pub-sub-starter/internal"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
