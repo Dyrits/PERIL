@@ -26,17 +26,10 @@ func main() {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(
-		connection,
-		routing.ExchangePerilTopic,
-		"game_logs",
-		"game_logs.*",
-		pubsub.QueueTypeDurable,
-	)
+	err = pubsub.SubscribeGOB(connection, routing.ExchangePerilTopic, routing.GameLogSlug, "game_logs.*", pubsub.QueueTypeDurable, handleLog())
 	if err != nil {
-		log.Fatalf("Failed to declare and bind the queue: %v", err)
+		log.Fatalf("Failed to subscribe to game logs: %v", err)
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	gamelogic.PrintServerHelp()
 

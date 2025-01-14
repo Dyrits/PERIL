@@ -21,22 +21,15 @@ func main() {
 	fmt.Println("The connection to RabbitMQ was successful.")
 	defer connection.Close()
 
+	channel, err := connection.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
 		log.Fatalf("Failed to get the username: %v", err)
 	}
-
-	_, queue, err := pubsub.DeclareAndBind(
-		connection,
-		routing.ExchangePerilDirect,
-		routing.PauseKey+"."+username,
-		routing.PauseKey,
-		pubsub.QueueTypeTransient,
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare and bind the queue: %v", err)
-	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	state := gamelogic.NewGameState(username)
 
@@ -46,24 +39,11 @@ func main() {
 		routing.PauseKey+"."+username,
 		routing.PauseKey,
 		pubsub.QueueTypeTransient,
-		handlerPause(state),
+		handlePause(state),
 	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to pause: %v", err)
 	}
-	fmt.Printf("Subscribed to pause for queue %v!\n", queue.Name)
-
-	channel, queue, err := pubsub.DeclareAndBind(
-		connection,
-		routing.ExchangePerilTopic,
-		routing.ArmyMovesPrefix+"."+username,
-		routing.ArmyMovesPrefix+".*",
-		pubsub.QueueTypeTransient,
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare and bind the queue: %v", err)
-	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	err = pubsub.SubscribeJSON(
 		connection,
@@ -71,26 +51,11 @@ func main() {
 		routing.ArmyMovesPrefix+"."+username,
 		routing.ArmyMovesPrefix+".*",
 		pubsub.QueueTypeTransient,
-		handlerMove(state, channel),
+		handleMove(state, channel),
 	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to moves: %v", err)
 	}
-	fmt.Printf("Subscribed to moves for queue %v!\n", queue.Name)
-
-	/*
-		_, _, err = pubsub.DeclareAndBind(
-			connection,
-			routing.ExchangePerilTopic,
-			"war",
-			routing.WarRecognitionsPrefix+".*",
-			pubsub.QueueTypeDurable,
-			false,
-		)
-		if err != nil {
-			log.Fatalf("Failed to declare and bind the war queue: %v", err)
-		}
-	*/
 
 	err = pubsub.SubscribeJSON(
 		connection,
@@ -98,7 +63,7 @@ func main() {
 		routing.WarRecognitionsPrefix,
 		routing.WarRecognitionsPrefix+".*",
 		pubsub.QueueTypeDurable,
-		handleWar(state),
+		handleWar(state, channel),
 	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to wars: %v", err)
