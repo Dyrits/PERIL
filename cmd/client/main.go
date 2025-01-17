@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 )
 
 func main() {
@@ -104,7 +105,27 @@ func main() {
 		case input[0] == "help":
 			gamelogic.PrintClientHelp()
 		case input[0] == "spam":
-			fmt.Println("Spamming not allowed yet!")
+			// Convert the number of messages to spam.
+			quantity, err := strconv.Atoi(input[1])
+			if err != nil {
+				fmt.Println("Spamming not allowed yet!")
+			} else {
+				for _ = range quantity {
+					err := pubsub.PublishGOB(
+						channel,
+						routing.ExchangePerilTopic,
+						routing.GameLogSlug+"."+username,
+						routing.GameLog{
+							Username: state.GetUsername(),
+							Message:  gamelogic.GetMaliciousLog(),
+						},
+					)
+					if err != nil {
+						fmt.Println("Failed to publish the message. Error:", err)
+					}
+				}
+			}
+
 		default:
 			fmt.Println("Unknown command:", input[0])
 		}

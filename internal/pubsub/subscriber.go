@@ -99,11 +99,11 @@ func SubscribeGOB[T any](
 	)
 }
 
-func decode[T any](data []byte, value T) error {
+func decode(data []byte, value interface{}) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 
-	if err := decoder.Decode(&value); err != nil {
+	if err := decoder.Decode(value); err != nil {
 		return err
 	}
 
