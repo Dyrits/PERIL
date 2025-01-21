@@ -23,6 +23,12 @@ func Subscribe[T any](
 		return err
 	}
 
+	err = channel.Qos(10, 0, false)
+	if err != nil {
+		fmt.Println("Failed to set Quality of Service. Error:", err)
+		return err
+	}
+
 	delivery, err := channel.Consume(queue.Name, "", false, false, false, false, nil)
 	if err != nil {
 		fmt.Println("Failed to consume the queue. Error:", err)
